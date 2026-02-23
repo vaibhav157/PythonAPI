@@ -133,7 +133,12 @@ def score_person_vs_account(
         confidence = float(payload.get("confidence_percentage", 0.0))
         confidence = max(0.0, min(100.0, confidence))
 
-        description = str(payload.get("description", "No description provided"))
+        description = str(
+            payload.get("description")
+            or payload.get("detailed_description")
+            or payload.get("reason")
+            or "No description provided"
+        )
 
         return match_result, confidence, description
     except HTTPException:
