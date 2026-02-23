@@ -3,17 +3,6 @@ from sqlalchemy.orm import Session
 import models
 
 DEFAULT_PROMPTS: dict[str, dict[str, str]] = {
-    "reconcile_match": {
-        "system": (
-            "You compare two records and return strict JSON with keys: "
-            "match_percentage (0 to 100 float) and reasoning (short string)."
-        ),
-        "user": (
-            "Compare these records and score similarity as percentage.\n"
-            "Local record: {local_record}\n"
-            "Remote record: {remote_record}"
-        ),
-    },
     "person_account_match": {
         "system": (
             "You are a record-linkage engine. Return strict JSON only with keys: "

@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from db import Base, engine
 from routers.person_account_match import router as person_account_match_router
 from routers.prompt_configs import router as prompt_configs_router
-from routers.reconcile import router as reconcile_router
 from routers.users import router as users_router
 
 app = FastAPI(title="Data Reconciliation API")
@@ -31,6 +30,5 @@ def health_check():
 
 
 app.include_router(users_router)
-app.include_router(reconcile_router)
 app.include_router(person_account_match_router)
 app.include_router(prompt_configs_router)
