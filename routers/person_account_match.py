@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
@@ -34,6 +36,7 @@ class PersonAccountMatchRequest(BaseModel):
     person: PersonRecord
     accounts: list[AccountRecord] = Field(min_length=1)
     openai_model: str | None = None
+    include_raw_output: bool = False
 
 
 class AccountMatchResult(BaseModel):
@@ -41,6 +44,7 @@ class AccountMatchResult(BaseModel):
     match_result: str
     confidence_percentage: float
     description: str
+    raw_output: dict[str, Any] | None = None
 
 
 class PersonAccountMatchResponse(BaseModel):
@@ -54,7 +58,7 @@ def match_person_to_accounts(payload: PersonAccountMatchRequest, db: Session = D
 
     results: list[AccountMatchResult] = []
     for index, account in enumerate(payload.accounts):
-        match_result, confidence, description = score_person_vs_account(
+        match_result, confidence, description, raw_output = score_person_vs_account(
             db=db,
             person_original=person_dict,
             account_original=account.model_dump(),
@@ -66,6 +70,7 @@ def match_person_to_accounts(payload: PersonAccountMatchRequest, db: Session = D
                 match_result=match_result,
                 confidence_percentage=confidence,
                 description=description,
+                raw_output=raw_output if payload.include_raw_output else None,
             )
         )
 

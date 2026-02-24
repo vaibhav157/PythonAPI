@@ -2,6 +2,7 @@ import json
 import os
 import re
 from datetime import datetime
+from typing import Any
 
 from fastapi import HTTPException
 from openai import OpenAI
@@ -39,6 +40,36 @@ def _resolve_openai_model(model: str | None) -> str:
     if model and model.strip():
         return model.strip()
     return os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+
+
+def _extract_response_text(raw_response: dict[str, Any]) -> str:
+    output = raw_response.get("output", [])
+    texts: list[str] = []
+
+    for item in output:
+        for content in item.get("content", []):
+            text = content.get("text")
+            if isinstance(text, str) and text.strip():
+                texts.append(text)
+
+    return "\n".join(texts).strip()
+
+
+def _parse_json_payload(text: str) -> dict[str, Any]:
+    if not text:
+        return {}
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            try:
+                return json.loads(text[start : end + 1])
+            except json.JSONDecodeError:
+                return {}
+        return {}
 
 
 def normalize_text(value: str | None) -> str:
@@ -92,7 +123,7 @@ def score_person_vs_account(
     person_original: dict[str, str],
     account_original: dict[str, str],
     model: str | None,
-) -> tuple[str, float, str]:
+) -> tuple[str, float, str, dict[str, Any]]:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not configured")
@@ -113,18 +144,24 @@ def score_person_vs_account(
     client = OpenAI(api_key=api_key)
 
     try:
-        completion = client.chat.completions.create(
+        response = client.responses.create(
             model=resolved_model,
             temperature=0,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+            input=[
+                {
+                    "role": "system",
+                    "content": [{"type": "input_text", "text": system_prompt}],
+                },
+                {
+                    "role": "user",
+                    "content": [{"type": "input_text", "text": user_prompt}],
+                },
             ],
         )
 
-        content = completion.choices[0].message.content or "{}"
-        payload = json.loads(content)
+        raw_response = response.model_dump()
+        content_text = _extract_response_text(raw_response)
+        payload = _parse_json_payload(content_text)
 
         match_result = str(payload.get("match_result", "no_match")).strip().lower()
         if match_result not in ALLOWED_MATCH_RESULTS:
@@ -140,7 +177,7 @@ def score_person_vs_account(
             or "No description provided"
         )
 
-        return match_result, confidence, description
+        return match_result, confidence, description, raw_response
     except HTTPException:
         raise
     except Exception as exc:
