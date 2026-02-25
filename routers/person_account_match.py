@@ -14,6 +14,7 @@ class PersonRecord(BaseModel):
     first_name: str = Field(validation_alias=AliasChoices("first_name", "FirstName"))
     last_name: str = Field(validation_alias=AliasChoices("last_name", "LastName"))
     dob: str = Field(validation_alias=AliasChoices("dob", "DoB", "DOB"))
+    address: str = Field(validation_alias=AliasChoices("address", "Address"))
     postcode: str = Field(validation_alias=AliasChoices("postcode", "Postcode", "PostalCode"))
     email: str = Field(validation_alias=AliasChoices("email", "Email"))
     phone: str = Field(validation_alias=AliasChoices("phone", "Phone"))
@@ -25,6 +26,7 @@ class AccountRecord(BaseModel):
     first_name: str = Field(validation_alias=AliasChoices("first_name", "FirstName"))
     last_name: str = Field(validation_alias=AliasChoices("last_name", "LastName"))
     dob: str = Field(validation_alias=AliasChoices("dob", "DoB", "DOB"))
+    address: str = Field(validation_alias=AliasChoices("address", "Address"))
     postcode: str = Field(validation_alias=AliasChoices("postcode", "Postcode", "PostalCode"))
     email: str = Field(validation_alias=AliasChoices("email", "Email"))
     phone: str = Field(validation_alias=AliasChoices("phone", "Phone"))
@@ -37,6 +39,8 @@ class PersonAccountMatchRequest(BaseModel):
     accounts: list[AccountRecord] = Field(min_length=1)
     openai_model: str | None = None
     include_raw_output: bool = False
+    include_semantic_signals: bool = False
+    embedding_model: str | None = None
 
 
 class AccountMatchResult(BaseModel):
@@ -44,6 +48,7 @@ class AccountMatchResult(BaseModel):
     match_result: str
     confidence_percentage: float
     description: str
+    match_signals: dict[str, Any]
     raw_output: dict[str, Any] | None = None
 
 
@@ -58,11 +63,13 @@ def match_person_to_accounts(payload: PersonAccountMatchRequest, db: Session = D
 
     results: list[AccountMatchResult] = []
     for index, account in enumerate(payload.accounts):
-        match_result, confidence, description, raw_output = score_person_vs_account(
+        match_result, confidence, description, raw_output, match_signals = score_person_vs_account(
             db=db,
             person_original=person_dict,
             account_original=account.model_dump(),
             model=payload.openai_model,
+            include_semantic_signals=payload.include_semantic_signals,
+            embedding_model=payload.embedding_model,
         )
         results.append(
             AccountMatchResult(
@@ -70,6 +77,7 @@ def match_person_to_accounts(payload: PersonAccountMatchRequest, db: Session = D
                 match_result=match_result,
                 confidence_percentage=confidence,
                 description=description,
+                match_signals=match_signals,
                 raw_output=raw_output if payload.include_raw_output else None,
             )
         )
