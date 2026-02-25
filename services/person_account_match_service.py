@@ -244,6 +244,8 @@ def build_match_signals(person_record: dict[str, str], account_record: dict[str,
     first_name_fuzzy_score = _fuzzy_score(person_first_canonical, account_first_canonical)
     last_name_fuzzy_score = _fuzzy_score(person_last, account_last)
     address_fuzzy_score = _fuzzy_score(person_address, account_address)
+    name_swap_first_last_fuzzy_score = _fuzzy_score(person_first_canonical, account_last)
+    name_swap_last_first_fuzzy_score = _fuzzy_score(person_last, account_first_canonical)
 
     return {
         "first_name_exact": person_first == account_first,
@@ -258,6 +260,17 @@ def build_match_signals(person_record: dict[str, str], account_record: dict[str,
         "last_name_soundex_person": _soundex(person_last),
         "last_name_soundex_account": _soundex(account_last),
         "last_name_soundex_match": _soundex(person_last) == _soundex(account_last),
+        "name_swap_first_last_exact": person_first_canonical == account_last,
+        "name_swap_last_first_exact": person_last == account_first_canonical,
+        "name_swap_fuzzy_score": round(
+            (name_swap_first_last_fuzzy_score + name_swap_last_first_fuzzy_score) / 2, 2
+        ),
+        "name_swap_fuzzy_match": _is_fuzzy_match(person_first_canonical, account_last)
+        and _is_fuzzy_match(person_last, account_first_canonical),
+        "name_swap_soundex_first_last_match": _soundex(person_first_canonical) == _soundex(account_last),
+        "name_swap_soundex_last_first_match": _soundex(person_last) == _soundex(account_first_canonical),
+        "name_swap_soundex_match": (_soundex(person_first_canonical) == _soundex(account_last))
+        and (_soundex(person_last) == _soundex(account_first_canonical)),
         "address_fuzzy_score": address_fuzzy_score,
         "address_fuzzy_match": _is_fuzzy_match(person_address, account_address, threshold=78.0),
         "address_soundex_person": _soundex(person_address),
